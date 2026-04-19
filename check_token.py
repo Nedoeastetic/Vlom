@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 from huggingface_hub import InferenceClient
+from dotenv import load_dotenv
+import os
+load_dotenv()
+TOKEN=os.environ.get('TOKEN')
 
-# 🔹 Вставьте ваш токен ниже (без пробелов в начале/конце!)
-TOKEN = "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"
 
-# 🔹 Используйте модель, гарантированно доступную в бесплатном API
-# Qwen2.5-7B-Instruct часто недоступен или требует запроса доступа
 MODEL = "Qwen/Qwen2.5-7B-Instruct"  # ✅ Рабочая альтернатива
 
 def check_token():
