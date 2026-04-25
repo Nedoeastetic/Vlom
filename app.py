@@ -53,6 +53,7 @@ from ui import (
     handle_ai_analysis,
     render_saved_result,
     render_help_expander,
+    render_rutube_vk_help,
 )
 
 # =============================================================================
@@ -159,3 +160,4 @@ if extracted_text and not extracted_text.startswith("❌"):
 # 💡 СПРАВКА
 # =============================================================================
 render_help_expander()
+render_rutube_vk_help()
