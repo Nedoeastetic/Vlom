@@ -1,5 +1,9 @@
+# db/user_manager.py
 from .supabase_client import get_supabase_client
 from typing import Optional, Dict
+from datetime import datetime, timezone, timedelta
+
+NOTE_TTL_DAYS = 7  # Срок хранения конспектов
 
 
 # =============================================================================
@@ -7,10 +11,6 @@ from typing import Optional, Dict
 # =============================================================================
 
 def sign_up(username: str, email: str, password: str) -> tuple[Optional[Dict], Optional[str]]:
-    """
-    Регистрирует пользователя через Supabase Auth.
-    Профиль в public.users создаётся триггером БД.
-    """
     supabase = get_supabase_client()
     try:
         response = supabase.auth.sign_up({
@@ -24,8 +24,6 @@ def sign_up(username: str, email: str, password: str) -> tuple[Optional[Dict], O
         if not user:
             return None, "Не удалось создать пользователя."
 
-        # Supabase может вернуть пользователя, но без подтверждённого email.
-        # Проверяем, требуется ли подтверждение.
         if user.identities is not None and len(user.identities) == 0:
             return None, "Пользователь с таким email уже существует."
 
@@ -39,9 +37,6 @@ def sign_up(username: str, email: str, password: str) -> tuple[Optional[Dict], O
 
 
 def sign_in(email: str, password: str) -> tuple[Optional[Dict], Optional[str]]:
-    """
-    Выполняет вход через Supabase Auth.
-    """
     supabase = get_supabase_client()
     try:
         response = supabase.auth.sign_in_with_password({
@@ -52,16 +47,14 @@ def sign_in(email: str, password: str) -> tuple[Optional[Dict], Optional[str]]:
         if not user:
             return None, "Неверный email или пароль."
 
-        # Берём username из метаданных Auth (там точно есть, даже если триггер не успел)
         username = (user.user_metadata or {}).get("username") or email.split("@")[0]
 
-        # Дополнительно пробуем взять из public.users
         try:
             profile = supabase.table("users").select("username").eq("id", user.id).execute()
             if profile.data:
                 username = profile.data[0]["username"]
         except Exception:
-            pass  # не критично, используем username из метаданных
+            pass
 
         return {"id": user.id, "username": username, "email": user.email}, None
 
@@ -88,12 +81,15 @@ def sign_out() -> bool:
 # =============================================================================
 
 def save_note(user_id: str, note_name: str, content: str) -> Optional[Dict]:
+    """Сохраняет заметку со сроком хранения 7 дней."""
     supabase = get_supabase_client()
     try:
+        expires_at = (datetime.now(timezone.utc) + timedelta(days=NOTE_TTL_DAYS)).isoformat()
         response = supabase.table("notes").insert({
             "userid": user_id,
             "notename": note_name,
             "content": content,
+            "expires_at": expires_at,
         }).execute()
         return response.data[0] if response.data else None
     except Exception as e:
@@ -102,13 +98,16 @@ def save_note(user_id: str, note_name: str, content: str) -> Optional[Dict]:
 
 
 def get_user_notes(user_id: str) -> list:
+    """Возвращает только актуальные (не просроченные) заметки пользователя."""
     supabase = get_supabase_client()
     try:
+        now = datetime.now(timezone.utc).isoformat()
         response = (
             supabase.table("notes")
             .select("*")
             .eq("userid", user_id)
-            .order("id", desc=True)
+            .gt("expires_at", now)       # только те, у которых expires_at > сейчас
+            .order("expires_at", desc=False)  # ближайшие к истечению — первые
             .execute()
         )
         return response.data or []
@@ -118,6 +117,7 @@ def get_user_notes(user_id: str) -> list:
 
 
 def delete_note(note_id: str, user_id: str) -> bool:
+    """Удаляет заметку по ID."""
     supabase = get_supabase_client()
     try:
         supabase.table("notes").delete().eq("id", note_id).eq("userid", user_id).execute()
@@ -125,3 +125,25 @@ def delete_note(note_id: str, user_id: str) -> bool:
     except Exception as e:
         print(f"❌ Ошибка удаления заметки: {e}")
         return False
+
+
+def delete_expired_notes() -> int:
+    """Удаляет все просроченные заметки. Возвращает количество удалённых."""
+    supabase = get_supabase_client()
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        response = supabase.table("notes").delete().lt("expires_at", now).execute()
+        return len(response.data) if response.data else 0
+    except Exception as e:
+        print(f"❌ Ошибка очистки просроченных заметок: {e}")
+        return 0
+
+
+def days_until_expiry(expires_at_str: str) -> int:
+    """Возвращает количество дней до истечения срока заметки."""
+    try:
+        expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+        delta = expires_at - datetime.now(timezone.utc)
+        return max(0, delta.days)
+    except Exception:
+        return 0

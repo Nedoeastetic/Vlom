@@ -30,6 +30,8 @@ import urllib.request
 from markitdown import MarkItDown
 from huggingface_hub import InferenceClient
 
+from db.user_manager import sign_up, sign_in, sign_out, save_note, get_user_notes, delete_note, delete_expired_notes, days_until_expiry
+
 # Импорт модулей проекта
 from utils.ffmpeg_setup import setup_ffmpeg_env, get_ffmpeg_path
 from services.transcription import transcribe_media
@@ -220,10 +222,27 @@ if extracted_text and not extracted_text.startswith("❌"):
     if DB_CONNECTED and st.session_state.get("authenticated"):
         st.write("---")
         st.subheader("📝 Мои конспекты")
+
+        # Очищаем просроченные при каждом открытии (тихо тсссс)
+        try:
+            delete_expired_notes()
+        except Exception:
+            pass
+
         user_notes = get_user_notes(st.session_state["user_id"])
         if user_notes:
+            st.caption(f"🕐 Конспекты хранятся 7 дней с момента создания")
             for note in user_notes:
-                with st.expander(f"📌 {note['notename']}"):
+                days_left = days_until_expiry(note.get("expires_at", ""))
+                # Цвет индикатора в зависимости от оставшегося времени
+                if days_left <= 1:
+                    expiry_badge = f"🔴 истекает сегодня"
+                elif days_left <= 2:
+                    expiry_badge = f"🟡 осталось {days_left} дн."
+                else:
+                    expiry_badge = f"🟢 осталось {days_left} дн."
+
+                with st.expander(f"📌 {note['notename']}  •  {expiry_badge}"):
                     st.write(note["content"])
                     col1, col2 = st.columns([3, 1])
                     with col1:
