@@ -13,3 +13,5 @@ PyMuPDF>=1.23.0
 extract-msg>=0.45.0
 supabase>=2.0.0
 python-dotenv>=1.0.0
+reportlab>=4.0.0
+fpdf2>=2.7.0
