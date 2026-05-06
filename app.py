@@ -1,7 +1,7 @@
 # 🔧 НАСТРОЙКА FFmpeg — ДО ВСЕХ ИМПОРТОВ!
 # =============================================================================
 import os
-import sys
+
 
 def setup_ffmpeg_path():
     """Добавляет ffmpeg в PATH до импорта любых библиотек"""
@@ -24,11 +24,6 @@ setup_ffmpeg_path()
 # =============================================================================
 import streamlit as st
 import tempfile
-import re
-import json
-import urllib.request
-from markitdown import MarkItDown
-from huggingface_hub import InferenceClient
 
 # Импорт модулей проекта
 from utils.ffmpeg_setup import setup_ffmpeg_env, get_ffmpeg_path
@@ -36,6 +31,7 @@ from services.transcription import transcribe_media
 from services.document_extractor import extract_from_document
 from services.youtube_service import get_youtube_transcript_ytdlp, extract_video_id
 from config.constants import DOC_EXTENSIONS, MEDIA_EXTENSIONS, CHAR_LIMIT
+from services.vk_rutube_service import get_transcript_from_vk_rutube
 # Импорт UI-модулей
 from ui import (
     setup_page,
@@ -52,6 +48,8 @@ from ui import (
     handle_ai_analysis,
     render_saved_result,
     render_help_expander,
+    render_vk_rutube_form,
+    handle_vk_rutube_submit,
     render_rutube_vk_help,
 )
 
@@ -138,6 +136,8 @@ render_cleanup_button()
 uploaded_file = render_file_uploader()
 youtube_url, yt_submitted = render_youtube_form(st.session_state.youtube_url)
 handle_youtube_submit(youtube_url, st.session_state.youtube_url)
+vk_rutube_url, vk_rutube_submitted = render_vk_rutube_form(st.session_state.get('vk_rutube_url', ''))
+handle_vk_rutube_submit(vk_rutube_url, st.session_state.get('vk_rutube_url', ''))
 
 # =============================================================================
 # 🔄 ЛОГИКА ОБРАБОТКИ
@@ -198,7 +198,31 @@ elif yt_submitted and youtube_url and not st.session_state.extracted_text:
     else:
         st.error("❌ Это не ссылка на YouTube")
 
+# --- Обработка VK и Rutube ---
+elif vk_rutube_submitted and vk_rutube_url and not st.session_state.extracted_text:
+    valid_domains = ['vk.com/video', 'vk.com/clip', 'rutube.ru/video', 'rutube.ru/play', 'rutube.ru/shorts']
+    if any(domain in vk_rutube_url.lower() for domain in valid_domains):
+        file_info = {
+            "name": f"VK/Rutube: {vk_rutube_url.split('/')[-1] or 'video'}",
+            "size_mb": 0,
+            "ext": ".vk_rutube",
+            "source": "vk_rutube"
+        }
+        with st.spinner("🌐 Скачиваем аудио и распознаём речь... (это может занять 1-3 мин)"):
+            extracted_text = get_transcript_from_vk_rutube(vk_rutube_url, whisper_model=whisper_model)
 
+            if extracted_text.startswith("❌") or extracted_text.startswith("⚠️"):
+                processing_status = extracted_text
+            else:
+                processing_status = "✅ Текст видео получен!"
+
+        st.session_state.extracted_text = extracted_text
+        st.session_state.file_info = file_info
+        st.session_state.processing_status = processing_status
+    else:
+        st.error("❌ Пожалуйста, введите корректную ссылку на VK Видео или Rutube")
+
+# --- Показ статуса ---
 render_processing_status(processing_status)
 
 # =============================================================================
@@ -208,6 +232,9 @@ if extracted_text and not extracted_text.startswith("❌"):
     render_extracted_text(extracted_text, file_info)
     render_source_caption(file_info)
 
+    # =============================================================================
+    # 🤖 АНАЛИЗ С ПОМОЩЬЮ ИИ
+    # =============================================================================
     text_for_llm = render_ai_analysis_section(task_type, file_info, extracted_text)
     handle_ai_analysis(
         hf_token, model_name, task_type, text_for_llm, extracted_text,
