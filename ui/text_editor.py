@@ -1,22 +1,22 @@
 import streamlit as st
 
-def render_saved_result(task_type):
-    """Отображает результат с возможностью редактирования и скачивания"""
 
+def edit_saved_result(task_type):
+    """Отображает результат с возможностью редактирования и скачивания"""
     if not st.session_state.get("llm_result"):
         return
 
-    st.write("---")
+    st.divider()
     st.success("✅ Результат готов!")
 
-    # режим просмотра
+    # ================= РЕЖИМ ПРОСМОТРА =================
     if not st.session_state.edit_mode:
         st.markdown(f"""
         <style>
         .formatted-text {{
             font-size: {st.session_state.font_size}px;
             font-family: {st.session_state.font_family};
-            color: {st.session_state.font_color};  # ← Добавлен #
+            color: {st.session_state.font_color};
             line-height: 1.6;
             padding: 20px;
         }}
@@ -26,10 +26,10 @@ def render_saved_result(task_type):
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("---")
+        st.divider()
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("✏️ Редактировать конспект", key="btn_show_edit_panel", use_container_width=True):
+            if st.button("️ Редактировать конспект", key="btn_show_edit_panel", use_container_width=True):
                 st.session_state.edit_mode = True
                 st.rerun()
         with col2:
@@ -41,10 +41,10 @@ def render_saved_result(task_type):
                 key="download_result_txt_view"
             )
 
-    # Режим редактирования
+    # ================= РЕЖИМ РЕДАКТИРОВАНИЯ =================
     else:
         with st.container(border=True):
-            st.markdown("#### 🎨 Настройки форматирования")
+            st.markdown("####  Настройки форматирования")
             col_f1, col_f2, col_f3 = st.columns(3)
 
             with col_f1:
@@ -60,20 +60,17 @@ def render_saved_result(task_type):
                 preset_sizes = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
                 default_idx = preset_sizes.index(
                     st.session_state.font_size) if st.session_state.font_size in preset_sizes else len(preset_sizes)
-
                 size_option = st.selectbox(
                     "Размер шрифта (px):",
                     options=[str(s) for s in preset_sizes] + ["Другое..."],
                     index=default_idx,
                     key="edit_size_selector"
                 )
-
                 if size_option == "Другое...":
                     new_font_size = st.number_input("Введите размер (от 8 до 40):", min_value=8, max_value=40,
                                                     value=st.session_state.font_size, step=1, key="edit_custom_size")
                 else:
                     new_font_size = int(size_option)
-
                 if new_font_size != st.session_state.font_size:
                     st.session_state.font_size = new_font_size
 
@@ -82,12 +79,12 @@ def render_saved_result(task_type):
                 if new_color != st.session_state.font_color:
                     st.session_state.font_color = new_color
 
-            st.markdown("---")
+            st.divider()
             st.markdown("#### 📝 Редактор конспекта")
             edited_text = st.text_area("Внесите правки в текст ниже:", value=st.session_state.llm_result, height=450,
                                        key="editor_text_area")
 
-            st.markdown("---")
+            st.divider()
             col_save, col_cancel = st.columns(2)
             with col_save:
                 if st.button("💾 Сохранить изменения", key="btn_save_edit", type="primary", use_container_width=True):
@@ -100,7 +97,7 @@ def render_saved_result(task_type):
                     st.rerun()
 
         # ===== Кнопки скачивания в режиме редактирования =====
-        st.markdown("---")
+        st.divider()
         col_d1, col_d2 = st.columns(2)
         with col_d1:
             st.download_button(
