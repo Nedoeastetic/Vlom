@@ -6,6 +6,7 @@ from .cleanup import render_cleanup_button
 from .status import render_processing_status
 from .results import render_extracted_text
 from .ai_analysis import render_ai_analysis_section, render_source_caption, handle_ai_analysis, render_saved_result
+from .graph_view import render_graph_section
 from .help_section import render_help_expander
 from .vk_rutube_note import render_rutube_vk_help
 
@@ -23,6 +24,7 @@ __all__ = [
     "render_ai_analysis_section",
     "handle_ai_analysis",
     "render_saved_result",
+    "render_graph_section",
     "render_help_expander",
     "render_rutube_vk_help",
 ]

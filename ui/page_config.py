@@ -23,6 +23,9 @@ def init_session_state():
         "file_info": None,
         "processing_status": None,
         "llm_result": None,
+        "graph_data": None,
+        "chart_data": None,
+        "generate_charts": True,
         "youtube_url": "",
         
         # 🔹 Ключи для управления виджетами (ОБЯЗАТЕЛЬНО!)

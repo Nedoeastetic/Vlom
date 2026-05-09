@@ -51,6 +51,7 @@ from ui import (
     render_ai_analysis_section,
     handle_ai_analysis,
     render_saved_result,
+    render_graph_section,
     render_help_expander,
     render_rutube_vk_help,
 )
@@ -217,6 +218,7 @@ if extracted_text and not extracted_text.startswith("❌"):
         user_id=st.session_state.get("user_id"),
         db_connected=DB_CONNECTED,
     )
+    render_graph_section(hf_token, model_name, extracted_text)
 
     # --- Мои конспекты ---
     if DB_CONNECTED and st.session_state.get("authenticated"):
