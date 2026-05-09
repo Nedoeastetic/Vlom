@@ -139,25 +139,30 @@ def render_saved_result(task_type: str, user_id: str = None, db_connected: bool 
     st.success("✅ Результат готов!")
     st.write(st.session_state.llm_result)
 
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.download_button(
-            label="📥 Скачать результат",
-            data=st.session_state.llm_result,
-            file_name=f"summary_{task_type.replace(' ', '_')}.md",
-            mime="text/markdown",
-            key="download_result_saved"
-        )
+    st.download_button(
+        label="📥 Скачать результат",
+        data=st.session_state.llm_result,
+        file_name=f"summary_{task_type.replace(' ', '_')}.md",
+        mime="text/markdown",
+        key="download_result_saved",
+    )
     if db_connected and user_id:
-        with col2:
-            if st.button("Сохранить конспект", key="save_note_btn"):
-                from db.user_manager import save_note
-                note_name = f"{task_type} — {st.session_state.file_info.get('name', 'без имени')[:30]}"
-                try:
-                    saved = save_note(user_id, note_name, st.session_state.llm_result)
-                    if saved:
-                        st.success(f"✅ Конспект '{note_name}' сохранён!")
-                    else:
-                        st.error("❌ Не удалось сохранить конспект.")
-                except Exception as e:
-                    st.error(f"❌ Ошибка сохранения: {e}")
+        st.write("")
+        default_name = f"{task_type} — {st.session_state.file_info.get('name', 'без имени')[:40]}"
+        note_name = st.text_input(
+            "Название конспекта",
+            value=default_name,
+            max_chars=80,
+            key="note_name_input",
+        )
+        if st.button("Сохранить конспект", key="save_note_btn"):
+            from db.user_manager import save_note
+            name = note_name.strip() or default_name
+            try:
+                saved = save_note(user_id, name, st.session_state.llm_result)
+                if saved:
+                    st.success(f"✅ Конспект «{name}» сохранён!")
+                else:
+                    st.error("❌ Не удалось сохранить конспект.")
+            except Exception as e:
+                st.error(f"❌ Ошибка сохранения: {e}")
