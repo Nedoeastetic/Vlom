@@ -140,7 +140,7 @@ def render_saved_result(task_type: str, user_id: str = None, db_connected: bool 
     st.write(st.session_state.llm_result)
 
     st.download_button(
-        label="Скачать результат",
+        label="📥 Скачать результат",
         data=st.session_state.llm_result,
         file_name=f"summary_{task_type.replace(' ', '_')}.md",
         mime="text/markdown",
