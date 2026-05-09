@@ -5,7 +5,7 @@ def render_my_notes():
     st.subheader("📝 Мои конспекты")
     user_id = st.session_state.get("user_id")
     if not user_id:
-        st.info("Авторизуйтесь, чтобы видеть свои заметки.")
+        st.info("Авторизуйтесь, чтобы видеть свои конспекты.")
         return
 
     notes = get_user_notes(user_id)
