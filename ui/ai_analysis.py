@@ -1,6 +1,7 @@
 import streamlit as st
 from huggingface_hub import InferenceClient
 from config.constants import PROMPTS, CHAR_LIMIT, MEDIA_EXTENSIONS
+from utils.text_cleaner import clean_markdown_text
 
 def render_ai_analysis_section(task_type: str, file_info: dict, extracted_text: str) -> str:
     """
@@ -32,8 +33,6 @@ def handle_ai_analysis(
     task_type: str,
     text_for_llm: str,
     extracted_text: str,
-    user_id: str = None, # Передаётся из app.py
-    db_connected: bool = False, # Передаётся из app.py
     button_key: str = "analyze_ai_btn"
 ) -> str | None:
     """
@@ -80,10 +79,9 @@ def handle_ai_analysis(
                 temperature=0.3
             )
             result_text = response.choices[0].message.content.strip()
+            result_text = clean_markdown_text(result_text)
             st.session_state.llm_result = result_text
-            # Отрисовка кнопки скачивания и информации
-            # Передаём user_id и db_connected в функцию отрисовки
-            _render_result_download(result_text, task_type, user_id, db_connected)
+            _render_result_download(result_text, task_type)
             _render_analysis_info(extracted_text, result_text)
             return result_text
         except Exception as e:
@@ -113,31 +111,15 @@ def _handle_ai_error(error: Exception, model_name: str) -> None:
     else:
         st.error(f"❌ Ошибка при обращении к ИИ: {error}")
 
-def _render_result_download(result_text: str, task_type: str, user_id: str, db_connected: bool):
-    """Отрисовывает кнопку скачивания и (опционально) кнопку сохранения в БД"""
-    col1, col2 = st.columns([3, 1]) # Создаём две колонки
-    with col1:
-        st.download_button(
-            label="📥 Скачать результат",
-            data=result_text,
-            file_name=f"summary_{task_type.replace(' ', '_')}.md",
-            mime="text/markdown",
-            key="download_result_new"
-        )
-    # Кнопка сохранения отображается только если БД подключена и пользователь вошёл
-    if db_connected and user_id:
-        with col2:
-            if st.button("💾 Сохранить", key="save_note_btn"):
-                from db.user_manager import save_note
-                note_name = f"{task_type} — {st.session_state.file_info.get('name', 'без имени')[:30]}"
-                try:
-                    saved = save_note(user_id, note_name, result_text)
-                    if saved:
-                        st.success(f"✅ Конспект '{note_name}' сохранён!")
-                    else:
-                        st.error("❌ Не удалось сохранить конспект.")
-                except Exception as e:
-                    st.error(f"❌ Ошибка сохранения: {e}")
+def _render_result_download(result_text: str, task_type: str):
+    """Отрисовывает кнопку скачивания результата"""
+    st.download_button(
+        label="📥 Скачать результат",
+        data=result_text,
+        file_name=f"summary_{task_type.replace(' ', '_')}.md",
+        mime="text/markdown",
+        key="download_result_new"
+    )
 
 def _render_analysis_info(original_text: str, result_text: str):
     """Отрисовывает блок с информацией об анализе"""
@@ -148,18 +130,41 @@ def _render_analysis_info(original_text: str, result_text: str):
             compression = round((1 - len(result_text) / len(original_text)) * 100, 1)
             st.write(f"**Сокращение:** {compression}%")
 
-def render_saved_result(task_type: str):
+def render_saved_result(task_type: str, user_id: str = None, db_connected: bool = False):
     """
     Отображает сохранённый результат анализа, если он есть в session_state.
     """
-    if st.session_state.llm_result:
-        st.write("---")
-        st.success("✅ Результат готов!")
-        st.write(st.session_state.llm_result)
-        st.download_button(
-            label="📥 Скачать результат",
-            data=st.session_state.llm_result,
-            file_name=f"summary_{task_type.replace(' ', '_')}.md",
-            mime="text/markdown",
-            key="download_result_saved"
+    if not st.session_state.llm_result:
+        return
+
+    st.write("---")
+    st.success("✅ Результат готов!")
+    st.write(st.session_state.llm_result)
+
+    st.download_button(
+        label="📥 Скачать результат",
+        data=st.session_state.llm_result,
+        file_name=f"summary_{task_type.replace(' ', '_')}.md",
+        mime="text/markdown",
+        key="download_result_saved",
+    )
+    if db_connected and user_id:
+        st.write("")
+        default_name = f"{task_type} — {st.session_state.file_info.get('name', 'без имени')[:40]}"
+        note_name = st.text_input(
+            "Название конспекта",
+            value=default_name,
+            max_chars=80,
+            key="note_name_input",
         )
+        if st.button("Сохранить конспект", key="save_note_btn"):
+            from db.user_manager import save_note
+            name = note_name.strip() or default_name
+            try:
+                saved = save_note(user_id, name, st.session_state.llm_result)
+                if saved:
+                    st.success(f"✅ Конспект «{name}» сохранён!")
+                else:
+                    st.error("❌ Не удалось сохранить конспект.")
+            except Exception as e:
+                st.error(f"❌ Ошибка сохранения: {e}")

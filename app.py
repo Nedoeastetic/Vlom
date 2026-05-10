@@ -155,6 +155,14 @@ if extracted_text and not extracted_text.startswith("❌"):
     text_for_llm = render_ai_analysis_section(task_type, file_info, extracted_text)
     handle_ai_analysis(hf_token, model_name, task_type, text_for_llm, extracted_text)
     render_saved_result(task_type)
+    handle_ai_analysis(
+        hf_token, model_name, task_type, text_for_llm, extracted_text,
+    )
+    render_saved_result(
+        task_type,
+        user_id=st.session_state.get("user_id"),
+        db_connected=DB_CONNECTED,
+    )
 
 # =============================================================================
 # 💡 СПРАВКА

@@ -84,7 +84,7 @@ def sign_out() -> bool:
 
 
 # =============================================================================
-# ЗАМЕТКИ
+# КОНСПЕКТЫ (СОХРАНЕННЫЕ)
 # =============================================================================
 
 def save_note(user_id: str, note_name: str, content: str) -> Optional[Dict]:
@@ -97,7 +97,7 @@ def save_note(user_id: str, note_name: str, content: str) -> Optional[Dict]:
         }).execute()
         return response.data[0] if response.data else None
     except Exception as e:
-        print(f"❌ Ошибка сохранения заметки: {e}")
+        print(f"❌ Ошибка сохранения конспекта: {e}")
         return None
 
 
@@ -113,7 +113,7 @@ def get_user_notes(user_id: str) -> list:
         )
         return response.data or []
     except Exception as e:
-        print(f"❌ Ошибка получения заметок: {e}")
+        print(f"❌ Ошибка получения конспектов: {e}")
         return []
 
 
@@ -123,5 +123,5 @@ def delete_note(note_id: str, user_id: str) -> bool:
         supabase.table("notes").delete().eq("id", note_id).eq("userid", user_id).execute()
         return True
     except Exception as e:
-        print(f"❌ Ошибка удаления заметки: {e}")
+        print(f"❌ Ошибка удаления конспекта: {e}")
         return False
