@@ -1,6 +1,7 @@
 import streamlit as st
 from huggingface_hub import InferenceClient
 from config.constants import PROMPTS, CHAR_LIMIT, MEDIA_EXTENSIONS
+from utils.text_cleaner import clean_markdown_text
 
 def render_ai_analysis_section(task_type: str, file_info: dict, extracted_text: str) -> str:
     """
@@ -78,6 +79,7 @@ def handle_ai_analysis(
                 temperature=0.3
             )
             result_text = response.choices[0].message.content.strip()
+            result_text = clean_markdown_text(result_text)
             st.session_state.llm_result = result_text
             _render_result_download(result_text, task_type)
             _render_analysis_info(extracted_text, result_text)
