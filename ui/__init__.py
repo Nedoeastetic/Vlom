@@ -7,7 +7,8 @@ from .status import render_processing_status
 from .results import render_extracted_text
 from .ai_analysis import render_ai_analysis_section, render_source_caption, handle_ai_analysis, render_saved_result
 from .help_section import render_help_expander
-from .vk_rutube_note import render_rutube_vk_help
+from .text_editor import edit_saved_result
+from .vk_rutube_form import render_vk_rutube_form, handle_vk_rutube_submit, render_rutube_vk_help
 
 __all__ = [
     "setup_page",
@@ -24,5 +25,8 @@ __all__ = [
     "handle_ai_analysis",
     "render_saved_result",
     "render_help_expander",
-    "render_rutube_vk_help",
+    "render_vk_rutube_form",
+    "edit_saved_result",
+    "handle_vk_rutube_submit",
+    "render_rutube_vk_help"
 ]
