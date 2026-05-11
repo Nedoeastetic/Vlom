@@ -3,7 +3,7 @@ from huggingface_hub import InferenceClient
 from dotenv import load_dotenv
 import os
 load_dotenv()
-TOKEN=os.environ.get('TOKEN')
+TOKEN=os.environ.get('HF_TOKEN_4')
 
 
 MODEL = "Qwen/Qwen2.5-7B-Instruct"  # ✅ Рабочая альтернатива

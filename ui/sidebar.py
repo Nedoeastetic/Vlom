@@ -5,7 +5,9 @@ from config.constants import PROMPTS
 def render_sidebar():
     """Отрисовывает боковую панель с настройками"""
     with st.sidebar:
-        hf_token = _render_ai_access()
+        # 🔹 УБРАНО: ввод токена пользователем
+        # Токены теперь берутся из config/token_manager.py
+        
         model_name = _render_model_selector()
         
         st.write("---")
@@ -18,18 +20,11 @@ def render_sidebar():
         yt_language = _render_youtube_settings()
         
         st.write("---")
-        st.caption("🔐 Ваш ключ не сохраняется и используется только в текущей сессии.")
+        # 🔹 Обновлённая подсказка
+        st.caption("🔑 Ключи ИИ настроены в системе и автоматически ротруются.")
     
-    return hf_token, model_name, task_type, whisper_model, yt_language
-
-
-def _render_ai_access():
-    st.header("🔑 Доступ к ИИ")
-    return st.text_input(
-        "Ключ доступа:",
-        type="password",
-        help="Получите ключ в настройках вашего аккаунта"
-    )
+    # 🔹 Возвращаем None вместо токена (он будет браться из token_manager)
+    return None, model_name, task_type, whisper_model, yt_language
 
 
 def _render_model_selector():
