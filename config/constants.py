@@ -8,6 +8,9 @@ AVAILABLE_MODELS = [
     "microsoft/Phi-3-mini-4k-instruct",
     "google/gemma-2-2b-it",
     "openchat/openchat-3.5-0106",
+    "Qwen/Qwen2.5-7B-Instruct",
+    "meta-llama/Llama-3.1-8B-Instruct",
+    "ai-forever/ruGPT-3.5",
 
 ]
 DEFAULT_MODEL = AVAILABLE_MODELS[0]
