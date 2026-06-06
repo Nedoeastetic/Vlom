@@ -23,7 +23,7 @@ __all__ = [
     "render_source_caption",
     "render_ai_analysis_section",
     "handle_ai_analysis",
-    "render_saved_result",
+    "edit_saved_result",
     "render_help_expander",
     "render_vk_rutube_form",
     "edit_saved_result",

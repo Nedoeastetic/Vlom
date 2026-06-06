@@ -46,7 +46,7 @@ from ui import (
     render_source_caption,
     render_ai_analysis_section,
     handle_ai_analysis,
-    render_saved_result,
+    edit_saved_result,
     render_help_expander,
     render_vk_rutube_form,
     handle_vk_rutube_submit,
@@ -239,11 +239,7 @@ if extracted_text and not extracted_text.startswith("❌"):
     handle_ai_analysis(
         hf_token, model_name, task_type, text_for_llm, extracted_text,
     )
-    render_saved_result(
-        task_type,
-        user_id=st.session_state.get("user_id"),
-        db_connected=DB_CONNECTED,
-    )
+    edit_saved_result(task_type)
 
     # --- Мои конспекты ---
     if DB_CONNECTED and st.session_state.get("authenticated"):
