@@ -105,6 +105,16 @@ def handle_ai_analysis(
                 
                 result_text = response.choices[0].message.content.strip()
                 st.session_state.llm_result = result_text
+
+                # Новый результат всегда открываем в режиме просмотра.
+                # Иначе может сохраниться старый пустой редактор.
+                st.session_state.edit_mode = False
+                st.session_state.editor_draft = None
+                st.session_state.editor_original_text = None
+                st.session_state.result_is_html = False
+                st.session_state.quill_version = (
+                    st.session_state.get("quill_version", 0) + 1
+                )
                 
                 _render_result_download(result_text, task_type)
                 _render_analysis_info(extracted_text, result_text)
