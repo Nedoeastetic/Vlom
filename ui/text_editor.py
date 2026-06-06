@@ -1,138 +1,508 @@
+import html
+import re
+from html.parser import HTMLParser
+
 import streamlit as st
+from streamlit_quill import st_quill
 
 
-def edit_saved_result(task_type):
-    """Отображает результат с возможностью редактирования и скачивания"""
-    if not st.session_state.get("llm_result"):
+# ============================================================
+# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+# ============================================================
+
+class _HTMLTextExtractor(HTMLParser):
+    """Преобразует HTML из Quill в обычный текст."""
+
+    BLOCK_TAGS = {
+        "p",
+        "div",
+        "br",
+        "li",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "blockquote",
+    }
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.parts: list[str] = []
+
+    def handle_starttag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        if tag == "br":
+            self.parts.append("\n")
+
+        if tag == "li":
+            self.parts.append("• ")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in self.BLOCK_TAGS and tag != "br":
+            self.parts.append("\n")
+
+    def handle_data(self, data: str) -> None:
+        self.parts.append(data)
+
+    def get_text(self) -> str:
+        text = "".join(self.parts)
+        text = html.unescape(text)
+
+        # Убираем лишние пробелы перед переносами строк.
+        text = re.sub(r"[ \t]+\n", "\n", text)
+
+        # Не допускаем больше двух пустых строк подряд.
+        text = re.sub(r"\n{3,}", "\n\n", text)
+
+        return text.strip()
+
+
+def _init_editor_state() -> None:
+    """Инициализирует состояние редактора."""
+
+    defaults = {
+        "edit_mode": False,
+        "editor_draft": None,
+        "editor_original_text": None,
+        "result_is_html": False,
+        "quill_version": 0,
+    }
+
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+
+def _safe_filename(task_type: str) -> str:
+    """Формирует безопасное имя файла."""
+
+    filename = re.sub(
+        r"[^\w\-]+",
+        "_",
+        str(task_type).strip(),
+        flags=re.UNICODE,
+    )
+
+    filename = filename.strip("_")
+
+    return filename or "result"
+
+
+def _looks_like_html(value: str) -> bool:
+    """Определяет, содержит ли строка HTML-разметку."""
+
+    if not value:
+        return False
+
+    return bool(
+        re.search(
+            r"</?(?:p|div|span|strong|em|u|s|h[1-6]|ol|ul|li|blockquote|br)\b",
+            value,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def _plain_text_to_html(value: str) -> str:
+    """Преобразует обычный текст в HTML для Quill."""
+
+    if not value:
+        return "<p><br></p>"
+
+    escaped = html.escape(value)
+
+    paragraphs = re.split(r"\n\s*\n", escaped)
+
+    html_paragraphs = []
+
+    for paragraph in paragraphs:
+        paragraph = paragraph.replace("\n", "<br>")
+        html_paragraphs.append(f"<p>{paragraph}</p>")
+
+    return "".join(html_paragraphs)
+
+
+def _normalize_for_editor(value: str) -> str:
+    """Готовит результат для загрузки в Quill."""
+
+    if not value:
+        return "<p><br></p>"
+
+    if _looks_like_html(value):
+        return value
+
+    return _plain_text_to_html(value)
+
+
+def _html_to_text(value: str) -> str:
+    """Преобразует HTML редактора в TXT."""
+
+    parser = _HTMLTextExtractor()
+    parser.feed(value or "")
+    parser.close()
+
+    return parser.get_text()
+
+
+def _is_empty_quill_html(value: str | None) -> bool:
+    """Проверяет, пуст ли результат Quill."""
+
+    if not value:
+        return True
+
+    plain_text = _html_to_text(value)
+
+    return not plain_text.strip()
+
+
+def _build_html_document(
+    content_html: str,
+    task_type: str,
+) -> str:
+    """Создаёт полноценный HTML-документ для скачивания."""
+
+    safe_title = html.escape(f"Конспект — {task_type}")
+
+    return f"""<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{safe_title}</title>
+
+    <style>
+        body {{
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 24px;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.65;
+            color: #1f2937;
+            background: #ffffff;
+            overflow-wrap: anywhere;
+        }}
+
+        h1 {{
+            margin-bottom: 28px;
+        }}
+
+        blockquote {{
+            margin: 16px 0;
+            padding: 12px 18px;
+            border-left: 4px solid #9ca3af;
+            background: #f3f4f6;
+        }}
+
+        pre {{
+            overflow-x: auto;
+            padding: 16px;
+            border-radius: 8px;
+            background: #111827;
+            color: #f9fafb;
+        }}
+
+        img {{
+            max-width: 100%;
+            height: auto;
+        }}
+    </style>
+</head>
+
+<body>
+    <h1>{safe_title}</h1>
+
+    <main>
+        {content_html}
+    </main>
+</body>
+</html>
+"""
+
+
+def _render_result(result: str) -> None:
+    """Отображает готовый результат после сохранения."""
+
+    if _looks_like_html(result):
+        rendered_content = result
+    else:
+        rendered_content = _plain_text_to_html(result)
+
+    st.markdown(
+        f"""
+        <style>
+            .vlom-result {{
+                padding: 20px;
+                border: 1px solid rgba(128, 128, 128, 0.25);
+                border-radius: 10px;
+                line-height: 1.65;
+                overflow-wrap: anywhere;
+            }}
+
+            .vlom-result blockquote {{
+                margin: 16px 0;
+                padding: 10px 16px;
+                border-left: 4px solid #9ca3af;
+                background: rgba(128, 128, 128, 0.08);
+            }}
+
+            .vlom-result img {{
+                max-width: 100%;
+                height: auto;
+            }}
+        </style>
+
+        <div class="vlom-result">
+            {rendered_content}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
+# ОСНОВНАЯ ФУНКЦИЯ
+# ============================================================
+
+def edit_saved_result(task_type: str) -> None:
+    """
+    Показывает результат ИИ, rich-text редактор и кнопки скачивания.
+
+    В app.py функция должна вызываться так:
+
+        edit_saved_result(task_type)
+    """
+
+    _init_editor_state()
+
+    result = st.session_state.get("llm_result")
+
+    if not result:
         return
+
+    filename = _safe_filename(task_type)
 
     st.divider()
     st.success("✅ Результат готов!")
 
-    # ================= РЕЖИМ ПРОСМОТРА =================
+    # ========================================================
+    # РЕЖИМ ПРОСМОТРА
+    # ========================================================
     if not st.session_state.edit_mode:
-        st.markdown(f"""
-        <style>
-        .formatted-text {{
-            font-size: {st.session_state.font_size}px;
-            font-family: {st.session_state.font_family};
-            color: {st.session_state.font_color};
-            line-height: 1.6;
-            padding: 20px;
-        }}
-        </style>
-        <div class="formatted-text">
-            {st.session_state.llm_result.replace(chr(10), '<br>')}
-        </div>
-        """, unsafe_allow_html=True)
+        _render_result(result)
 
         st.divider()
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("️ Редактировать конспект", key="btn_show_edit_panel", use_container_width=True):
+
+        col_edit, col_txt, col_html = st.columns(3)
+
+        with col_edit:
+            if st.button(
+                "✏️ Редактировать конспект",
+                key="btn_show_edit_panel",
+                use_container_width=True,
+            ):
+                editor_html = _normalize_for_editor(result)
+
+                st.session_state.editor_original_text = result
+                st.session_state.editor_draft = editor_html
+                st.session_state.result_is_html = _looks_like_html(result)
                 st.session_state.edit_mode = True
+
+                # Меняем ключ редактора, чтобы Quill загрузил новый текст.
+                st.session_state.quill_version += 1
+
                 st.rerun()
-        with col2:
-            st.download_button(
-                label="📥 Скачать результат (TXT)",
-                data=st.session_state.llm_result,
-                file_name=f"summary_{task_type.replace(' ', '_')}.txt",
-                mime="text/plain",
-                key="download_result_txt_view"
+
+        with col_txt:
+            plain_result = (
+                _html_to_text(result)
+                if _looks_like_html(result)
+                else result
             )
 
-    # ================= РЕЖИМ РЕДАКТИРОВАНИЯ =================
+            st.download_button(
+                label="📥 Скачать TXT",
+                data=plain_result,
+                file_name=f"summary_{filename}.txt",
+                mime="text/plain; charset=utf-8",
+                key="download_result_txt_view",
+                use_container_width=True,
+            )
+
+        with col_html:
+            result_html = (
+                result
+                if _looks_like_html(result)
+                else _plain_text_to_html(result)
+            )
+
+            html_document = _build_html_document(
+                result_html,
+                task_type,
+            )
+
+            st.download_button(
+                label="📥 Скачать HTML",
+                data=html_document,
+                file_name=f"summary_{filename}.html",
+                mime="text/html; charset=utf-8",
+                key="download_result_html_view",
+                use_container_width=True,
+            )
+
+        return
+
+    # ========================================================
+    # РЕЖИМ РЕДАКТИРОВАНИЯ
+    # ========================================================
+
+    if st.session_state.editor_draft is None:
+        st.session_state.editor_draft = _normalize_for_editor(result)
+
+    if st.session_state.editor_original_text is None:
+        st.session_state.editor_original_text = result
+
+    st.markdown("### 📝 Редактор конспекта")
+
+    st.caption(
+        "Выделите нужный фрагмент прямо в редакторе, затем выберите "
+        "жирный шрифт, цвет, размер, заголовок, список или выравнивание "
+        "на панели над текстом."
+    )
+
+    toolbar = [
+        [
+            "bold",
+            "italic",
+            "underline",
+            "strike",
+        ],
+        [
+            {"script": "sub"},
+            {"script": "super"},
+        ],
+        [
+            {"header": [1, 2, 3, 4, False]},
+            {"size": ["small", False, "large", "huge"]},
+        ],
+        [
+            {"font": []},
+            {"color": []},
+            {"background": []},
+        ],
+        [
+            {"list": "ordered"},
+            {"list": "bullet"},
+            {"indent": "-1"},
+            {"indent": "+1"},
+        ],
+        [
+            {"align": []},
+        ],
+        [
+            "blockquote",
+            "code-block",
+            "link",
+            "clean",
+        ],
+    ]
+
+    edited_html = st_quill(
+        value=st.session_state.editor_draft,
+        placeholder="Редактируйте конспект...",
+        html=True,
+        toolbar=toolbar,
+        preserve_whitespace=True,
+        key=f"quill_editor_{st.session_state.quill_version}",
+    )
+
+    # У некоторых версий компонента первое значение может быть None.
+    if edited_html is None:
+        edited_html = st.session_state.editor_draft
     else:
-        with st.container(border=True):
-            st.markdown("####  Настройки форматирования")
-            col_f1, col_f2, col_f3 = st.columns(3)
+        st.session_state.editor_draft = edited_html
 
-            with col_f1:
-                font_options = ["Arial", "Times New Roman", "Calibri", "Courier New", "Georgia"]
-                current_idx = font_options.index(
-                    st.session_state.font_family) if st.session_state.font_family in font_options else 0
-                selected_font = st.selectbox("Шрифт:", options=font_options, index=current_idx,
-                                             key="edit_font_selector")
-                if selected_font != st.session_state.font_family:
-                    st.session_state.font_family = selected_font
+    st.divider()
 
-            with col_f2:
-                preset_sizes = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
-                default_idx = preset_sizes.index(
-                    st.session_state.font_size) if st.session_state.font_size in preset_sizes else len(preset_sizes)
-                size_option = st.selectbox(
-                    "Размер шрифта (px):",
-                    options=[str(s) for s in preset_sizes] + ["Другое..."],
-                    index=default_idx,
-                    key="edit_size_selector"
-                )
-                if size_option == "Другое...":
-                    new_font_size = st.number_input("Введите размер (от 8 до 40):", min_value=8, max_value=40,
-                                                    value=st.session_state.font_size, step=1, key="edit_custom_size")
-                else:
-                    new_font_size = int(size_option)
-                if new_font_size != st.session_state.font_size:
-                    st.session_state.font_size = new_font_size
+    col_save, col_cancel = st.columns(2)
 
-            with col_f3:
-                new_color = st.color_picker("Цвет текста:", value=st.session_state.font_color, key="edit_color_picker")
-                if new_color != st.session_state.font_color:
-                    st.session_state.font_color = new_color
+    with col_save:
+        if st.button(
+            "💾 Сохранить изменения",
+            key="btn_save_edit",
+            type="primary",
+            use_container_width=True,
+        ):
+            if _is_empty_quill_html(edited_html):
+                st.warning("Конспект не может быть пустым.")
+            else:
+                st.session_state.llm_result = edited_html
+                st.session_state.result_is_html = True
+                st.session_state.editor_draft = None
+                st.session_state.editor_original_text = None
+                st.session_state.edit_mode = False
 
-            st.divider()
-            st.markdown("#### 📝 Редактор конспекта")
-            edited_text = st.text_area("Внесите правки в текст ниже:", value=st.session_state.llm_result, height=450,
-                                       key="editor_text_area")
+                st.rerun()
 
-            st.divider()
-            col_save, col_cancel = st.columns(2)
-            with col_save:
-                if st.button("💾 Сохранить изменения", key="btn_save_edit", type="primary", use_container_width=True):
-                    st.session_state.llm_result = edited_text.strip()
-                    st.session_state.edit_mode = False
-                    st.rerun()
-            with col_cancel:
-                if st.button("❌ Отменить", key="btn_cancel_edit", use_container_width=True):
-                    st.session_state.edit_mode = False
-                    st.rerun()
+    with col_cancel:
+        if st.button(
+            "❌ Отменить",
+            key="btn_cancel_edit",
+            use_container_width=True,
+        ):
+            original_text = st.session_state.editor_original_text
 
-        # ===== Кнопки скачивания в режиме редактирования =====
-        st.divider()
-        col_d1, col_d2 = st.columns(2)
-        with col_d1:
-            st.download_button(
-                label="📥 Скачать результат в TXT",
-                data=st.session_state.llm_result,
-                file_name=f"summary_{task_type.replace(' ', '_')}.txt",
-                mime="text/plain",
-                key="download_result_txt_edit"
-            )
-        with col_d2:
-            html_content = f"""<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Конспект - {task_type}</title>
-    <style>
-        body {{
-            font-size: {st.session_state.font_size}px;
-            font-family: {st.session_state.font_family};
-            color: {st.session_state.font_color};
-            line-height: 1.6;
-            max-width: 800px;
-            margin: 40px auto;
-            padding: 20px;
-        }}
-    </style>
-</head>
-<body>
-    {st.session_state.llm_result.replace(chr(10), '<br>')}
-</body>
-</html>"""
-            st.download_button(
-                label="📥 Скачать результат в HTML",
-                data=html_content,
-                file_name=f"summary_{task_type.replace(' ', '_')}.html",
-                mime="text/html",
-                key="download_result_html_edit"
-            )
+            if original_text is not None:
+                st.session_state.llm_result = original_text
+
+            st.session_state.editor_draft = None
+            st.session_state.editor_original_text = None
+            st.session_state.edit_mode = False
+
+            # При следующем открытии создастся новый экземпляр Quill.
+            st.session_state.quill_version += 1
+
+            st.rerun()
+
+    # ========================================================
+    # СКАЧИВАНИЕ ТЕКУЩЕЙ РЕДАКЦИИ
+    # ========================================================
+
+    st.divider()
+    st.markdown("#### Скачать текущую редакцию")
+
+    current_html = edited_html or st.session_state.editor_draft or ""
+    current_text = _html_to_text(current_html)
+
+    col_download_txt, col_download_html = st.columns(2)
+
+    with col_download_txt:
+        st.download_button(
+            label="📥 Скачать текущий текст в TXT",
+            data=current_text,
+            file_name=f"summary_{filename}.txt",
+            mime="text/plain; charset=utf-8",
+            key="download_result_txt_edit",
+            use_container_width=True,
+        )
+
+    with col_download_html:
+        html_document = _build_html_document(
+            current_html,
+            task_type,
+        )
+
+        st.download_button(
+            label="📥 Скачать текущий текст в HTML",
+            data=html_document,
+            file_name=f"summary_{filename}.html",
+            mime="text/html; charset=utf-8",
+            key="download_result_html_edit",
+            use_container_width=True,
+        )
