@@ -266,6 +266,129 @@ def _render_result(result: str) -> None:
     )
 
 
+def _render_save_to_folder(result: str, task_type: str) -> None:
+    """Сохраняет текущий конспект в выбранную пользовательскую папку."""
+
+    user_id = st.session_state.get("user_id")
+
+    if not user_id:
+        st.info("🔒 Войдите в профиль, чтобы сохранять конспекты по папкам.")
+        return
+
+    from db.user_manager import create_folder, get_user_folders, save_note
+
+    folders = get_user_folders(user_id)
+
+    st.divider()
+    st.markdown("### 💾 Сохранить в профиль")
+
+    source_name = (
+        st.session_state.get("file_info") or {}
+    ).get("name", "без имени")
+    default_name = f"{task_type} — {source_name[:40]}"
+
+    note_name = st.text_input(
+        "Название конспекта",
+        value=default_name,
+        max_chars=100,
+        key="note_name_input",
+    )
+
+    folder_map = {"Без папки": None}
+    for folder in folders:
+        folder_map[str(folder["name"])] = str(folder["id"])
+
+    folder_options = list(folder_map.keys())
+
+    # Streamlit запрещает менять значение виджета после того, как виджет
+    # уже создан в текущем проходе. Поэтому выбор новой папки применяем
+    # отложенно — в следующем rerun, до создания selectbox.
+    pending_folder = st.session_state.pop(
+        "pending_save_note_folder_select",
+        None,
+    )
+    if pending_folder in folder_options:
+        st.session_state["save_note_folder_select"] = pending_folder
+
+    current_folder = st.session_state.get(
+        "save_note_folder_select",
+        "Без папки",
+    )
+    if current_folder not in folder_options:
+        st.session_state["save_note_folder_select"] = "Без папки"
+
+    selected_folder_name = st.selectbox(
+        "Папка",
+        options=folder_options,
+        key="save_note_folder_select",
+        help="Папки создаёт сам пользователь. Готовых папок нет.",
+    )
+
+    with st.expander("➕ Создать новую папку перед сохранением"):
+        # Поле также очищается только до создания text_input.
+        if st.session_state.pop("clear_new_folder_before_save", False):
+            st.session_state["new_folder_before_save"] = ""
+
+        new_folder_name = st.text_input(
+            "Название новой папки",
+            placeholder="Например: Физика",
+            max_chars=80,
+            key="new_folder_before_save",
+        )
+
+        if st.button(
+            "Создать папку",
+            key="create_folder_before_save_btn",
+        ):
+            cleaned_folder_name = new_folder_name.strip()
+
+            if not cleaned_folder_name:
+                st.warning("Введите название папки.")
+            else:
+                created = create_folder(user_id, cleaned_folder_name)
+
+                if created:
+                    st.session_state[
+                        "pending_save_note_folder_select"
+                    ] = str(created["name"])
+                    st.session_state["clear_new_folder_before_save"] = True
+                    st.session_state["folder_success_message"] = (
+                        f"Папка «{created['name']}» создана и выбрана."
+                    )
+                    st.rerun()
+                else:
+                    st.error(
+                        "Не удалось создать папку. Возможно, такое название уже используется."
+                    )
+
+    success_message = st.session_state.pop("folder_success_message", None)
+    if success_message:
+        st.success(success_message)
+
+    if st.button(
+        "Сохранить конспект",
+        key="save_note_btn",
+        type="primary",
+        use_container_width=True,
+    ):
+        name = note_name.strip() or default_name
+        folder_id = folder_map[selected_folder_name]
+
+        saved = save_note(
+            user_id=user_id,
+            note_name=name,
+            content=result,
+            folder_id=folder_id,
+        )
+
+        if saved:
+            st.success(f"✅ Конспект «{name}» сохранён.")
+        else:
+            st.error(
+                "Не удалось сохранить конспект. Выполните SQL-миграцию папок в Supabase."
+            )
+
+
 # ============================================================
 # ОСНОВНАЯ ФУНКЦИЯ
 # ============================================================
@@ -356,6 +479,7 @@ def edit_saved_result(task_type: str) -> None:
                 use_container_width=True,
             )
 
+        _render_save_to_folder(result, task_type)
         return
 
     # ========================================================
