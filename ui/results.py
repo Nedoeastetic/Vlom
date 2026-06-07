@@ -6,33 +6,33 @@ from fpdf import FPDF  # <-- Импортируем здесь, один раз
 
 def render_extracted_text(extracted_text: str, file_info: dict):
     """Отображает извлечённый текст и кнопки скачивания"""
-    st.subheader("📋 Доступные действия")
+    st.subheader("Доступные действия")
 
     is_large = file_info.get("size_mb", 0) > 5 or len(extracted_text) > 100000
     filename_base = file_info['name'].replace(':', '_')
     base_filename_for_export = f"{filename_base}_text"
 
     if is_large:
-        st.info(f"📁 Текст очень большой. Для удобства предпросмотр отключён.")
+        st.info(f"Текст очень большой. Для удобства предпросмотр отключён.")
 
         _render_download_button(
             data=extracted_text,
             filename=f"{base_filename_for_export}.md",
             key="download_original_large_md",
-            label="📥 Скачать исходный текст (.md)"
+            label="Скачать исходный текст (.md)"
         )
 
         _render_additional_formats(extracted_text, base_filename_for_export, key_suffix="large")
 
     else:
-        with st.expander("📄 Показать извлечённый текст"):
+        with st.expander("Показать извлечённый текст"):
             st.code(extracted_text, language="markdown")
 
         _render_download_button(
             data=extracted_text,
             filename=f"{base_filename_for_export}.md",
             key="download_original_small_md",
-            label="📥 Скачать исходный текст (.md)"
+            label="Скачать исходный текст (.md)"
         )
 
         _render_additional_formats(extracted_text, base_filename_for_export, key_suffix="small")
@@ -53,7 +53,7 @@ def _render_download_button(data: str, filename: str, key: str, label: str = "�
 
 def _render_additional_formats(content: str, filename_base: str, key_suffix: str):
     """Отрисовывает выбор формата и кнопку скачивания для TXT, PDF, DOCX"""
-    st.markdown("#### 📦 Скачать в другом формате:")
+    st.markdown("#### Скачать в другом формате:")
 
     export_format = st.selectbox(
         "Выберите формат:",
@@ -62,7 +62,7 @@ def _render_additional_formats(content: str, filename_base: str, key_suffix: str
         key=f"format_select_{key_suffix}"
     )
 
-    if st.button("📥 Скачать выбранный формат", key=f"btn_download_new_{key_suffix}"):
+    if st.button("Скачать выбранный формат", key=f"btn_download_new_{key_suffix}"):
         if export_format == "TXT":
             download_as_txt(content, f"{filename_base}.txt")
         elif export_format == "PDF":
@@ -76,7 +76,7 @@ def _render_additional_formats(content: str, filename_base: str, key_suffix: str
 def download_as_txt(content: str, filename: str):
     """Скачать как TXT"""
     st.download_button(
-        label="📄 Готово! Нажмите еще раз, если не скачалось",
+        label="Готово! Нажмите еще раз, если не скачалось",
         data=content.encode('utf-8'),
         file_name=filename,
         mime='text/plain',
@@ -102,7 +102,7 @@ def download_as_pdf(content: str, filename: str):
         pdf.set_font('Arial', size=12)
 
     except Exception as e:
-        st.error(f"❌ Не удалось загрузить шрифт Arial. Проверьте путь.")
+        st.error(f"Не удалось загрузить шрифт Arial. Проверьте путь.")
         st.code(str(e))
         return
 
@@ -122,7 +122,7 @@ def download_as_pdf(content: str, filename: str):
     pdf.output(buffer)
 
     st.download_button(
-        label="📄 Скачать PDF",
+        label="Скачать PDF",
         data=buffer.getvalue(),
         file_name=filename,
         mime='application/pdf',
@@ -140,7 +140,7 @@ def download_as_docx(content: str, filename: str):
     document.save(buffer)
 
     st.download_button(
-        label="📄 Готово! Нажмите еще раз, если не скачалось",
+        label="Готово! Нажмите еще раз, если не скачалось",
         data=buffer.getvalue(),
         file_name=filename,
         mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document',

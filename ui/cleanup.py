@@ -13,7 +13,7 @@ def render_cleanup_button():
     if has_data:
         col1, col2 = st.columns([4, 1])
         with col2:
-            if st.button("🗑️ Очистить всё", key="clear_all_btn"):
+            if st.button("Очистить всё", key="clear_all_btn"):
                 # 🔹 Очищаем ВСЕ данные
                 keys_to_clear = [
                     'extracted_text',

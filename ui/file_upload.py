@@ -17,7 +17,7 @@ def render_file_uploader(key_prefix: str = "file_uploader"):
     unique_key = f"{key_prefix}_{st.session_state.file_uploader_counter}"
     
     uploaded_file = st.file_uploader(
-        "📎 Прикрепите файл",
+        "Прикрепите файл",
         type=ALL_EXTENSIONS,
         key=unique_key,
         label_visibility="visible"
