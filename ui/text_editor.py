@@ -10,6 +10,7 @@ def _clean_ai_markdown(text: str) -> str:
     """Удаляет Markdown-разметку из ответа ИИ."""
     if not text:
         return ""
+
     # Убираем заголовки (#, ##)
     text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
     # Убираем жирный шрифт (**текст**)
