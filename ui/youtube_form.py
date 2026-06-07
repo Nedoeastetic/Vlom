@@ -8,7 +8,6 @@ def render_youtube_form(current_url: str):
     🔹 Использует динамический ключ для сброса поля при очистке
     """
     st.write("---")
-    st.subheader("🔗 Или обработайте видео с YouTube")
     
     # Инициализируем счётчик ключей если нужно
     if 'youtube_field_key' not in st.session_state:
@@ -27,7 +26,7 @@ def render_youtube_form(current_url: str):
             placeholder="https://www.youtube.com/watch?v=...  ",
             key=input_key
         )
-        submitted = st.form_submit_button("🚀 Получить текст из видео")
+        submitted = st.form_submit_button("Получить текст из видео")
     
     return youtube_url, submitted
 

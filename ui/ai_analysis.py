@@ -16,8 +16,8 @@ def render_ai_analysis_section(task_type: str, file_info: dict, extracted_text: 
     Возвращает:
         str: Текст, подготовленный для отправки в ИИ (возможно, обрезанный)
     """
-    st.subheader("✨ Анализ с помощью ИИ")
-    st.info(f"📌 Задача: **{task_type}**")
+    st.subheader("Анализ с помощью ИИ")
+    st.info(f"Задача: **{task_type}**")
     
     # 🔹 Показываем статус токенов (только для отладки, можно убрать)
     # if token_manager.is_configured():
@@ -28,7 +28,7 @@ def render_ai_analysis_section(task_type: str, file_info: dict, extracted_text: 
     
     text_for_llm = extracted_text
     if len(text_for_llm) > CHAR_LIMIT:
-        st.warning(f"⚠️ Текст очень большой. Для анализа будет использована только первая часть.")
+        st.warning(f"Текст очень большой. Для анализа будет использована только первая часть.")
         text_for_llm = text_for_llm[:CHAR_LIMIT]
     
     return text_for_llm
@@ -37,9 +37,9 @@ def render_ai_analysis_section(task_type: str, file_info: dict, extracted_text: 
 def render_source_caption(file_info: dict):
     """Отображает подпись об источнике данных"""
     if file_info.get("ext") in MEDIA_EXTENSIONS:
-        st.caption("🎵 Источник: аудио или видеофайл")
+        st.caption("Источник: аудио или видеофайл")
     elif file_info.get("ext") == ".youtube":
-        st.caption("🌐 Источник: видео с YouTube")
+        st.caption("Источник: видео с YouTube")
 
 
 def handle_ai_analysis(
@@ -54,7 +54,7 @@ def handle_ai_analysis(
     Обрабатывает нажатие кнопки анализа ИИ.
     Автоматически ротирует токены при ошибке 429.
     """
-    if not st.button("🚀 Проанализировать с ИИ", key=button_key):
+    if not st.button("Проанализировать с ИИ", key=button_key):
         return None
     
     
@@ -71,7 +71,7 @@ def handle_ai_analysis(
         )
         return None
     
-    with st.spinner("🤖 Идёт анализ..."):
+    with st.spinner("Идёт анализ..."):
         max_retries = len(token_manager.tokens)  # Пробуем каждый токен один раз
         
         for attempt in range(max_retries):
@@ -183,7 +183,7 @@ def _handle_ai_error(error: Exception, model_name: str) -> None:
 def _render_result_download(result_text: str, task_type: str):
     """Отрисовывает кнопку скачивания результата"""
     st.download_button(
-        label="📥 Скачать результат",
+        label="Скачать результат",
         data=result_text,
         file_name=f"summary_{task_type.replace(' ', '_')}.md",
         mime="text/markdown",
@@ -193,7 +193,7 @@ def _render_result_download(result_text: str, task_type: str):
 
 def _render_analysis_info(original_text: str, result_text: str):
     """Отрисовывает блок с информацией об анализе"""
-    with st.expander("📊 Информация", key="info_expander_new"):
+    with st.expander("Информация", key="info_expander_new"):
         st.write(f"**Исходный текст:** {len(original_text):,} символов")
         st.write(f"**Результат:** {len(result_text):,} символов")
         if len(original_text) > 0:
@@ -209,11 +209,11 @@ def render_saved_result(task_type: str, user_id: str = None, db_connected: bool 
         return
 
     st.write("---")
-    st.success("✅ Результат готов!")
+    st.success("Результат готов!")
     st.write(st.session_state.llm_result)
 
     st.download_button(
-        label="📥 Скачать результат",
+        label="Скачать результат",
         data=st.session_state.llm_result,
         file_name=f"summary_{task_type.replace(' ', '_')}.md",
         mime="text/markdown",
@@ -234,8 +234,8 @@ def render_saved_result(task_type: str, user_id: str = None, db_connected: bool 
             try:
                 saved = save_note(user_id, name, st.session_state.llm_result)
                 if saved:
-                    st.success(f"✅ Конспект «{name}» сохранён!")
+                    st.success(f"Конспект «{name}» сохранён!")
                 else:
-                    st.error("❌ Не удалось сохранить конспект.")
+                    st.error("Не удалось сохранить конспект.")
             except Exception as e:
-                st.error(f"❌ Ошибка сохранения: {e}")
+                st.error(f"Ошибка сохранения: {e}")

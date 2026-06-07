@@ -8,10 +8,9 @@ def setup_page():
         page_icon="📄",
         layout="centered"
     )
-    st.title("📄 Универсальный анализатор документов")
+    st.title("Универсальный анализатор документов")
     st.write(
-        "Загрузите файл (PDF, Word, Excel, аудио или видео) "
-        "или ссылку на YouTube, чтобы получить краткое содержание с помощью ИИ."
+        "Загрузите файл в удобном формате "
     )
 
 
@@ -25,7 +24,7 @@ def init_session_state():
         "llm_result": None,
         "youtube_url": "",
         
-        # 🔹 Ключи для управления виджетами (ОБЯЗАТЕЛЬНО!)
+
         "file_uploader_counter": 0,
         "youtube_field_key": 0,
         "youtube_input_value": "",

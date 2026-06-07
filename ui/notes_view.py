@@ -104,7 +104,7 @@ def _render_folder_sidebar(
     _create_folder_panel(user_id)
 
     if st.sidebar.button(
-        "🔄 Обновить папки",
+        "Обновить папки",
         key="refresh_folders_btn",
         use_container_width=True,
     ):
@@ -127,7 +127,7 @@ def _render_folder_sidebar(
             counts[key] = counts.get(key, 0) + 1
 
     if st.sidebar.button(
-        f"📚 Все конспекты ({counts[ALL_NOTES_KEY]})",
+        f"Все конспекты ({counts[ALL_NOTES_KEY]})",
         key="folder_all_notes",
         type="primary" if selected == ALL_NOTES_KEY else "secondary",
         use_container_width=True,
@@ -137,7 +137,7 @@ def _render_folder_sidebar(
 
     if counts[UNFILED_KEY] > 0:
         if st.sidebar.button(
-            f"🗒️ Без папки ({counts[UNFILED_KEY]})",
+            f"🗒Без папки ({counts[UNFILED_KEY]})",
             key="folder_unfiled_notes",
             type="primary" if selected == UNFILED_KEY else "secondary",
             use_container_width=True,
@@ -150,7 +150,7 @@ def _render_folder_sidebar(
         folder_name = str(folder["name"])
 
         if st.sidebar.button(
-            f"📁 {folder_name} ({counts.get(folder_id, 0)})",
+            f"{folder_name} ({counts.get(folder_id, 0)})",
             key=f"folder_button_{folder_id}",
             type="primary" if selected == folder_id else "secondary",
             use_container_width=True,
@@ -181,7 +181,7 @@ def _render_folder_management(
     folder_id = str(selected_folder["id"])
     folder_name = str(selected_folder["name"])
 
-    with st.expander("⚙️ Настройки папки", expanded=False):
+    with st.expander("Настройки папки", expanded=False):
         new_name = st.text_input(
             "Новое название",
             value=folder_name,
@@ -238,7 +238,7 @@ def _render_saved_note_editor(
     if note_id is None:
         return False
 
-    st.subheader("✏️ Редактирование сохранённого конспекта")
+    st.subheader("Редактирование сохранённого конспекта")
 
     note_name = st.text_input(
         "Название конспекта",
@@ -291,7 +291,7 @@ def _render_saved_note_editor(
 
     with col_save:
         if st.button(
-            "💾 Сохранить изменения",
+            "Сохранить изменения",
             key=f"save_saved_note_{note_id}",
             type="primary",
             use_container_width=True,
@@ -387,7 +387,7 @@ def render_my_notes() -> None:
         return
 
     title = _selected_title(folders, selected_key)
-    st.subheader(f"📁 {title}")
+    st.subheader(f"{title}")
 
     _render_folder_management(user_id, folders, selected_key)
 
@@ -444,7 +444,7 @@ def render_my_notes() -> None:
 
             with col_move:
                 if st.button(
-                    "📂 Переместить",
+                    "Переместить",
                     key=f"move_note_btn_{note_id}",
                     use_container_width=True,
                 ):
@@ -479,7 +479,7 @@ def render_my_notes() -> None:
 
             with col_edit:
                 if st.button(
-                    "✏️ Изменить",
+                    "Изменить",
                     key=f"edit_note_btn_{note_id}",
                     use_container_width=True,
                 ):
@@ -487,7 +487,7 @@ def render_my_notes() -> None:
 
             with col_download:
                 st.download_button(
-                    "📥 Скачать",
+                    "Скачать",
                     data=content,
                     file_name=f"{_safe_filename(note_name)}.html",
                     mime="text/html; charset=utf-8",
@@ -497,7 +497,7 @@ def render_my_notes() -> None:
 
             with col_delete:
                 if st.button(
-                    "🗑️ Удалить",
+                    "Удалить",
                     key=f"delete_note_btn_{note_id}",
                     use_container_width=True,
                 ):

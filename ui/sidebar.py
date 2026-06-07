@@ -5,8 +5,6 @@ from config.constants import PROMPTS
 def render_sidebar():
     """Отрисовывает боковую панель с настройками"""
     with st.sidebar:
-        # 🔹 УБРАНО: ввод токена пользователем
-        # Токены теперь берутся из config/token_manager.py
         
         model_name = _render_model_selector()
         
@@ -20,10 +18,8 @@ def render_sidebar():
         yt_language = _render_youtube_settings()
         
         st.write("---")
-        # 🔹 Обновлённая подсказка
-        st.caption("🔑 Ключи ИИ настроены в системе и автоматически ротруются.")
     
-    # 🔹 Возвращаем None вместо токена (он будет браться из token_manager)
+
     return None, model_name, task_type, whisper_model, yt_language
 
 
@@ -36,7 +32,7 @@ def _render_model_selector():
 
 
 def _render_task_selector():
-    st.header("🎯 Тип задачи")
+    st.header("Тип задачи")
     return st.selectbox(
         "Что сделать?",
         ["Краткий пересказ", "Подробный конспект", "Тезисы", "План статьи"]
@@ -44,7 +40,7 @@ def _render_task_selector():
 
 
 def _render_whisper_settings():
-    st.header("🎵 Аудио/Видео")
+    st.header("Аудио/Видео")
     return st.selectbox(
         "Качество распознавания:",
         ["tiny", "base", "small", "medium"],
@@ -54,7 +50,7 @@ def _render_whisper_settings():
 
 
 def _render_youtube_settings():
-    st.header("🌐 YouTube")
+    st.header("YouTube")
     return st.selectbox(
         "Язык субтитров:",
         ["ru", "en", "auto"],
