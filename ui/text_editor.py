@@ -6,6 +6,23 @@ import streamlit as st
 from streamlit_quill import st_quill
 
 
+def _clean_ai_markdown(text: str) -> str:
+    """Удаляет Markdown-разметку из ответа ИИ."""
+    if not text:
+        return ""
+
+    # Убираем заголовки (#, ##)
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+    # Убираем жирный шрифт (**текст**)
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    # Убираем курсив (*текст*), но аккуратно
+    text = re.sub(r'(?<!\n)\*(?!\s)(.*?)(?<!\s)\*', r'\1', text)
+    # Убираем маркеры списков (- или *)
+    text = re.sub(r'^[\-\*]\s+', '', text, flags=re.MULTILINE)
+    # Убираем лишние пустые строки
+    text = re.sub(r'\n{3,}', '\n\n', text)
+
+    return text.strip()
 # ============================================================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # ============================================================
@@ -404,7 +421,9 @@ def edit_saved_result(task_type: str) -> None:
 
     _init_editor_state()
 
-    result = st.session_state.get("llm_result")
+    raw_result = st.session_state.get("llm_result")
+    # Очищаем текст от звездочек и решеток перед показом
+    result = _clean_ai_markdown(raw_result) if raw_result else None
 
     if not result:
         return
