@@ -2,40 +2,65 @@ import streamlit as st
 from io import BytesIO
 from docx import Document
 from fpdf import FPDF  # <-- Импортируем здесь, один раз
+import re
+def _clean_ai_markdown(text: str) -> str:
+    """Удаляет Markdown-разметку из ответа ИИ."""
+    if not text:
+        return ""
 
+    # Убираем заголовки (#, ##)
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+    # Убираем жирный шрифт (**текст**)
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    # Убираем курсив (*текст*), но аккуратно
+    text = re.sub(r'(?<!\n)\*(?!\s)(.*?)(?<!\s)\*', r'\1', text)
+    # Убираем маркеры списков (- или *)
+    text = re.sub(r'^[\-\*]\s+', '', text, flags=re.MULTILINE)
+    # Убираем лишние пустые строки
+    text = re.sub(r'\n{3,}', '\n\n', text)
+
+    return text.strip()
 
 def render_extracted_text(extracted_text: str, file_info: dict):
-    """Отображает извлечённый текст и кнопки скачивания"""
+    """Отображает извлечённый текст и кнопки скачивания (всегда очищенного)"""
     st.subheader("Доступные действия")
 
-    is_large = file_info.get("size_mb", 0) > 5 or len(extracted_text) > 100000
+    # 1. СРАЗУ очищаем текст от Markdown один раз для всех операций
+    clean_text = _clean_ai_markdown(extracted_text)
+
+    is_large = file_info.get("size_mb", 0) > 5 or len(clean_text) > 100000
     filename_base = file_info['name'].replace(':', '_')
     base_filename_for_export = f"{filename_base}_text"
 
     if is_large:
         st.info(f"Текст очень большой. Для удобства предпросмотр отключён.")
 
+        # 2. Используем clean_text вместо extracted_text
         _render_download_button(
-            data=extracted_text,
-            filename=f"{base_filename_for_export}.md",
-            key="download_original_large_md",
-            label="Скачать исходный текст (.md)"
+            data=clean_text,
+            filename=f"{base_filename_for_export}.txt", # Меняем расширение на .txt
+            key="download_original_large_txt",
+            label="Скачать очищенный текст (.txt)"
         )
 
-        _render_additional_formats(extracted_text, base_filename_for_export, key_suffix="large")
+        # Передаем уже очищенный текст в дополнительные форматы
+        _render_additional_formats(clean_text, base_filename_for_export, key_suffix="large")
 
     else:
-        with st.expander("Показать извлечённый текст"):
-            st.code(extracted_text, language="markdown")
+        with st.expander("Показать извлеченный текст"):
+            # 3. Показываем очищенный текст
+            st.text(clean_text)
 
+        # 4. Скачивание тоже использует clean_text
         _render_download_button(
-            data=extracted_text,
-            filename=f"{base_filename_for_export}.md",
-            key="download_original_small_md",
-            label="Скачать исходный текст (.md)"
+            data=clean_text,
+            filename=f"{base_filename_for_export}.txt",
+            key="download_original_small_txt",
+            label="Скачать очищенный текст (.txt)"
         )
 
-        _render_additional_formats(extracted_text, base_filename_for_export, key_suffix="small")
+        # И здесь передаем очищенный текст
+        _render_additional_formats(clean_text, base_filename_for_export, key_suffix="small")
 
     st.write("---")
 
