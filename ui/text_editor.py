@@ -457,71 +457,83 @@ def edit_saved_result(task_type: str) -> None:
 
         # --- Блок выбора формата и скачивания ---
         with col_download:
-            # Определяем чистый текст и HTML-версию из АКТУАЛЬНОГО session_state
-            current_result = st.session_state.get("llm_result") or result
-            plain_result = _html_to_text(current_result) if _looks_like_html(current_result) else current_result
-            result_html = current_result if _looks_like_html(current_result) else _plain_text_to_html(current_result)
+            # Определяем чистый текст и HTML-версию
+            plain_result = _html_to_text(result) if _looks_like_html(result) else result
+            result_html = result if _looks_like_html(result) else _plain_text_to_html(result)
 
+            # 1. Добавляем HTML в список вариантов
             export_format = st.selectbox(
                 "Формат:",
-                ["TXT", "PDF", "Word"],
+                ["TXT", "PDF", "Word", "HTML"],
                 label_visibility="collapsed",
                 key=f"fmt_select_{st.session_state.get('quill_version', 0)}"
             )
 
-            safe_name = f"summary_{task_type.replace(' ', '_')}"
+            # 2. Логика скачивания для каждого формата
+            if st.button("Скачать", key="btn_download_formatted", use_container_width=True):
+                safe_name = f"summary_{task_type.replace(' ', '_')}"
 
-            if export_format == "TXT":
-                st.download_button(
-                    label="Скачать TXT",
-                    data=plain_result.encode('utf-8'),
-                    file_name=f"{safe_name}.txt",
-                    mime="text/plain",
-                    key="dl_txt_dynamic",
-                    use_container_width=True,
-                )
-
-            elif export_format == "PDF":
-                pdf = FPDF()
-                pdf.add_page()
-                font_path = "C:/Windows/Fonts/arial.ttf"
-                try:
-                    pdf.add_font('Arial', '', font_path, uni=True)
-                    pdf.set_font('Arial', size=12)
-                    for line in plain_result.split('\n'):
-                        if len(line) > 100:
-                            chunks = [line[i:i + 100] for i in range(0, len(line), 100)]
-                            for chunk in chunks:
-                                pdf.cell(0, 10, txt=chunk, ln=True)
-                        else:
-                            pdf.cell(0, 10, txt=line, ln=True)
-                    buffer = BytesIO()
-                    pdf.output(buffer)
+                if export_format == "TXT":
                     st.download_button(
-                        label="Скачать PDF",
-                        data=buffer.getvalue(),
-                        file_name=f"{safe_name}.pdf",
-                        mime="application/pdf",
-                        key="dl_pdf_dynamic",
-                        use_container_width=True,
+                        label="️Сохранить TXT",
+                        data=plain_result.encode('utf-8'),
+                        file_name=f"{safe_name}.txt",
+                        mime="text/plain",
+                        key="dl_txt_dynamic"
                     )
-                except Exception as e:
-                    st.error(f"Ошибка PDF: {e}")
 
-            elif export_format == "Word":
-                doc = Document()
-                doc.add_heading(f'Конспект: {task_type}', level=1)
-                doc.add_paragraph(plain_result)
-                buffer = BytesIO()
-                doc.save(buffer)
-                st.download_button(
-                    label="⬇ Скачать Word",
-                    data=buffer.getvalue(),
-                    file_name=f"{safe_name}.docx",
-                    mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    key="dl_docx_dynamic",
-                    use_container_width=True,
-                )
+                elif export_format == "PDF":
+                    pdf = FPDF()
+                    pdf.add_page()
+                    font_path = "C:/Windows/Fonts/arial.ttf"
+                    try:
+                        pdf.add_font('Arial', '', font_path, uni=True)
+                        pdf.set_font('Arial', size=12)
+                        for line in plain_result.split('\n'):
+                            if len(line) > 100:
+                                chunks = [line[i:i + 100] for i in range(0, len(line), 100)]
+                                for chunk in chunks: pdf.cell(0, 10, txt=chunk, ln=True)
+                            else:
+                                pdf.cell(0, 10, txt=line, ln=True)
+
+                        buffer = BytesIO()
+                        pdf.output(buffer)
+                        st.download_button(
+                            label="⬇Сохранить PDF",
+                            data=buffer.getvalue(),
+                            file_name=f"{safe_name}.pdf",
+                            mime="application/pdf",
+                            key="dl_pdf_dynamic"
+                        )
+                    except Exception as e:
+                        st.error(f"Ошибка PDF: {e}")
+
+                elif export_format == "Word":
+                    doc = Document()
+                    doc.add_heading(f'Конспект: {task_type}', level=1)
+                    doc.add_paragraph(plain_result)
+                    buffer = BytesIO()
+                    doc.save(buffer)
+                    st.download_button(
+                        label="⬇Сохранить Word",
+                        data=buffer.getvalue(),
+                        file_name=f"{safe_name}.docx",
+                        mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        key="dl_docx_dynamic"
+                    )
+
+                # 3. Новый блок для HTML
+                elif export_format == "HTML":
+                    # Используем вашу существующую функцию для красивого оформления
+                    html_document = _build_html_document(result_html, task_type)
+
+                    st.download_button(
+                        label="⬇Сохранить HTML",
+                        data=html_document,
+                        file_name=f"{safe_name}.html",
+                        mime="text/html",
+                        key="dl_html_dynamic"
+                    )
 
         _render_save_to_folder(result, task_type)
         return
@@ -660,3 +672,8 @@ def edit_saved_result(task_type: str) -> None:
             use_container_width=True,
         )
 
+    with col_download_html:
+        html_document = _build_html_document(
+            current_html,
+            task_type,
+        )

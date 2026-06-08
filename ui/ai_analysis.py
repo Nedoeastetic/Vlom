@@ -2,10 +2,27 @@ import streamlit as st
 from huggingface_hub import InferenceClient
 from config.constants import PROMPTS, CHAR_LIMIT, MEDIA_EXTENSIONS
 from config.token_manager import token_manager  # 🔹 ИМПОРТ МЕНЕДЖЕРА
+import re
 
 
 
+def _clean_ai_markdown(text: str) -> str:
+    """Удаляет Markdown-разметку из ответа ИИ."""
+    if not text:
+        return ""
 
+    # Убираем заголовки (#, ##)
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+    # Убираем жирный шрифт (**текст**)
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    # Убираем курсив (*текст*), но аккуратно
+    text = re.sub(r'(?<!\n)\*(?!\s)(.*?)(?<!\s)\*', r'\1', text)
+    # Убираем маркеры списков (- или *)
+    text = re.sub(r'^[\-\*]\s+', '', text, flags=re.MULTILINE)
+    # Убираем лишние пустые строки
+    text = re.sub(r'\n{3,}', '\n\n', text)
+
+    return text.strip()
 
 
 
@@ -88,10 +105,12 @@ def handle_ai_analysis(
                     model=model_name,
                     token=current_token
                 )
-                
+
                 system_prompt = (
                     f"Ты ИИ помощник. Думай внимательно, тщательно проверяй свои ответы. "
-                    f"{PROMPTS[task_type]} Отвечай на русском языке."
+                    f"{PROMPTS[task_type]} Отвечай на русском языке. "
+                    f"ВАЖНО: пиши ответ обычным текстом без Markdown. "
+                    f"Не используй жирный шрифт (**), заголовки (#), списки со звёздочками или решётками."
                 )
                 
                 response = client.chat.completions.create(
@@ -102,8 +121,10 @@ def handle_ai_analysis(
                     max_tokens=10000,
                     temperature=0.3
                 )
-                
-                result_text = response.choices[0].message.content.strip()
+
+                raw_text = response.choices[0].message.content.strip()
+                # Очищаем текст от звездочек и решеток
+                result_text = _clean_ai_markdown(raw_text)
                 st.session_state.llm_result = result_text
 
                 # Новый результат всегда открываем в режиме просмотра.
@@ -115,8 +136,7 @@ def handle_ai_analysis(
                 st.session_state.quill_version = (
                     st.session_state.get("quill_version", 0) + 1
                 )
-                
-                _render_result_download(result_text, task_type)
+
                 _render_analysis_info(extracted_text, result_text)
                 
                 return result_text
@@ -179,16 +199,6 @@ def _handle_ai_error(error: Exception, model_name: str) -> None:
         st.error(f"❌ Неизвестная ошибка: {type(error).__name__}")
         with st.expander("🔧 Детали ошибки (для разработчика)"):
             st.code(error_msg)
-
-def _render_result_download(result_text: str, task_type: str):
-    """Отрисовывает кнопку скачивания результата"""
-    st.download_button(
-        label="Скачать результат",
-        data=result_text,
-        file_name=f"summary_{task_type.replace(' ', '_')}.md",
-        mime="text/markdown",
-        key="download_result_new"
-    )
 
 
 def _render_analysis_info(original_text: str, result_text: str):
