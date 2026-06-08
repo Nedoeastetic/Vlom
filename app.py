@@ -170,15 +170,15 @@ if uploaded_file is not None and not st.session_state.extracted_text:
 
     try:
         if file_ext in MEDIA_EXTENSIONS:
-            with st.spinner("🎤 Распознаём речь..."):
+            with st.spinner("Распознаём речь..."):
                 extracted_text = transcribe_media(tmp_path, model_size=whisper_model)
-                processing_status = "✅ Распознавание завершено!" if not extracted_text.startswith("❌") else extracted_text
+                processing_status = "Распознавание завершено!" if not extracted_text.startswith("❌") else extracted_text
         elif file_ext in DOC_EXTENSIONS:
-            with st.spinner("📄 Обрабатываем документ..."):
+            with st.spinner("Обрабатываем документ..."):
                 extracted_text = extract_from_document(tmp_path, file_ext)
-                processing_status = "✅ Текст получен!" if not extracted_text.startswith("❌") else extracted_text
+                processing_status = "Текст получен!" if not extracted_text.startswith("❌") else extracted_text
         else:
-            processing_status = f"❌ Формат .{file_ext} не поддерживается"
+            processing_status = f"Формат .{file_ext} не поддерживается"
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
@@ -253,8 +253,7 @@ if extracted_text and not extracted_text.startswith("❌"):
     )
     edit_saved_result(task_type)
 
-    if DB_CONNECTED and not st.session_state.get("authenticated"):
-        st.info("🔒 Войдите, чтобы сохранять конспекты по папкам.")
+
 
 # =============================================================================
 # 💡 СПРАВКА

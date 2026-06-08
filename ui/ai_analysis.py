@@ -97,7 +97,7 @@ def handle_ai_analysis(
                 current_token = current_token.strip()  # 🔹 Убираем случайные пробелы
             
             if not current_token:
-                st.error("❌ Не удалось получить токен")
+                st.error("Не удалось получить токен")
                 return None
             
             try:

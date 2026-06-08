@@ -292,7 +292,7 @@ def _render_save_to_folder(result: str, task_type: str) -> None:
     user_id = st.session_state.get("user_id")
 
     if not user_id:
-        st.info("🔒 Войдите в профиль, чтобы сохранять конспекты по папкам.")
+        st.info("Войдите в профиль, чтобы сохранять конспекты по папкам.")
         return
 
     from db.user_manager import create_folder, get_user_folders, save_note
@@ -300,7 +300,7 @@ def _render_save_to_folder(result: str, task_type: str) -> None:
     folders = get_user_folders(user_id)
 
     st.divider()
-    st.markdown("### 💾 Сохранить в профиль")
+    st.markdown("###Сохранить в профиль")
 
     source_name = (
         st.session_state.get("file_info") or {}
@@ -320,9 +320,6 @@ def _render_save_to_folder(result: str, task_type: str) -> None:
 
     folder_options = list(folder_map.keys())
 
-    # Streamlit запрещает менять значение виджета после того, как виджет
-    # уже создан в текущем проходе. Поэтому выбор новой папки применяем
-    # отложенно — в следующем rerun, до создания selectbox.
     pending_folder = st.session_state.pop(
         "pending_save_note_folder_select",
         None,
@@ -402,7 +399,7 @@ def _render_save_to_folder(result: str, task_type: str) -> None:
         )
 
         if saved:
-            st.success(f"✅ Конспект «{name}» сохранён.")
+            st.success(f"Конспект «{name}» сохранён.")
         else:
             st.error(
                 "Не удалось сохранить конспект. Выполните SQL-миграцию папок в Supabase."
@@ -434,7 +431,7 @@ def edit_saved_result(task_type: str) -> None:
     filename = _safe_filename(task_type)
 
     st.divider()
-    st.success("✅ Результат готов!")
+    st.success("Результат готов!")
 
     # ========================================================
     # РЕЖИМ ПРОСМОТРА
@@ -551,7 +548,7 @@ def edit_saved_result(task_type: str) -> None:
     if st.session_state.editor_original_text is None:
         st.session_state.editor_original_text = result
 
-    st.markdown("### 📝 Редактор конспекта")
+    st.markdown("###Редактор конспекта")
 
     st.caption(
         "Выделите нужный фрагмент прямо в редакторе, затем выберите "
@@ -617,7 +614,7 @@ def edit_saved_result(task_type: str) -> None:
 
     with col_save:
         if st.button(
-            "💾 Сохранить изменения",
+            "Сохранить изменения",
             key="btn_save_edit",
             type="primary",
             use_container_width=True,
@@ -635,7 +632,7 @@ def edit_saved_result(task_type: str) -> None:
 
     with col_cancel:
         if st.button(
-            "❌ Отменить",
+            "Отменить",
             key="btn_cancel_edit",
             use_container_width=True,
         ):
@@ -679,13 +676,4 @@ def edit_saved_result(task_type: str) -> None:
         html_document = _build_html_document(
             current_html,
             task_type,
-        )
-
-        st.download_button(
-            label="Скачать текущий текст в HTML",
-            data=html_document,
-            file_name=f"summary_{filename}.html",
-            mime="text/html; charset=utf-8",
-            key="download_result_html_edit",
-            use_container_width=True,
         )
