@@ -1,11 +1,31 @@
 import html
 import re
 from html.parser import HTMLParser
+from io import BytesIO
+from docx import Document
+from fpdf import FPDF
 
 import streamlit as st
 from streamlit_quill import st_quill
 
 
+def _clean_ai_markdown(text: str) -> str:
+    """Удаляет Markdown-разметку из ответа ИИ."""
+    if not text:
+        return ""
+
+    # Убираем заголовки (#, ##)
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+    # Убираем жирный шрифт (**текст**)
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    # Убираем курсив (*текст*), но аккуратно
+    text = re.sub(r'(?<!\n)\*(?!\s)(.*?)(?<!\s)\*', r'\1', text)
+    # Убираем маркеры списков (- или *)
+    text = re.sub(r'^[\-\*]\s+', '', text, flags=re.MULTILINE)
+    # Убираем лишние пустые строки
+    text = re.sub(r'\n{3,}', '\n\n', text)
+
+    return text.strip()
 # ============================================================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # ============================================================
@@ -272,7 +292,7 @@ def _render_save_to_folder(result: str, task_type: str) -> None:
     user_id = st.session_state.get("user_id")
 
     if not user_id:
-        st.info("🔒 Войдите в профиль, чтобы сохранять конспекты по папкам.")
+        st.info("Войдите в профиль, чтобы сохранять конспекты по папкам.")
         return
 
     from db.user_manager import create_folder, get_user_folders, save_note
@@ -280,7 +300,7 @@ def _render_save_to_folder(result: str, task_type: str) -> None:
     folders = get_user_folders(user_id)
 
     st.divider()
-    st.markdown("### 💾 Сохранить в профиль")
+    st.markdown("###Сохранить в профиль")
 
     source_name = (
         st.session_state.get("file_info") or {}
@@ -300,9 +320,6 @@ def _render_save_to_folder(result: str, task_type: str) -> None:
 
     folder_options = list(folder_map.keys())
 
-    # Streamlit запрещает менять значение виджета после того, как виджет
-    # уже создан в текущем проходе. Поэтому выбор новой папки применяем
-    # отложенно — в следующем rerun, до создания selectbox.
     pending_folder = st.session_state.pop(
         "pending_save_note_folder_select",
         None,
@@ -382,7 +399,7 @@ def _render_save_to_folder(result: str, task_type: str) -> None:
         )
 
         if saved:
-            st.success(f"✅ Конспект «{name}» сохранён.")
+            st.success(f"Конспект «{name}» сохранён.")
         else:
             st.error(
                 "Не удалось сохранить конспект. Выполните SQL-миграцию папок в Supabase."
@@ -404,7 +421,9 @@ def edit_saved_result(task_type: str) -> None:
 
     _init_editor_state()
 
-    result = st.session_state.get("llm_result")
+    raw_result = st.session_state.get("llm_result")
+    # Очищаем текст от звездочек и решеток перед показом
+    result = _clean_ai_markdown(raw_result) if raw_result else None
 
     if not result:
         return
@@ -412,7 +431,7 @@ def edit_saved_result(task_type: str) -> None:
     filename = _safe_filename(task_type)
 
     st.divider()
-    st.success("✅ Результат готов!")
+    st.success("Результат готов!")
 
     # ========================================================
     # РЕЖИМ ПРОСМОТРА
@@ -422,62 +441,87 @@ def edit_saved_result(task_type: str) -> None:
 
         st.divider()
 
-        col_edit, col_txt, col_html = st.columns(3)
+        # Создаем 4 колонки: Редактирование + 3 варианта скачивания
+        col_edit, col_download, col_spacer, col_spacer2 = st.columns([1.5, 1, 0.5, 0.5])
 
+        # --- Кнопка редактирования (без изменений) ---
         with col_edit:
-            if st.button(
-                "✏️ Редактировать конспект",
-                key="btn_show_edit_panel",
-                use_container_width=True,
-            ):
+            if st.button("️ Редактировать конспект", key="btn_show_edit_panel", use_container_width=True):
                 editor_html = _normalize_for_editor(result)
-
                 st.session_state.editor_original_text = result
                 st.session_state.editor_draft = editor_html
                 st.session_state.result_is_html = _looks_like_html(result)
                 st.session_state.edit_mode = True
-
-                # Меняем ключ редактора, чтобы Quill загрузил новый текст.
                 st.session_state.quill_version += 1
-
                 st.rerun()
 
-        with col_txt:
-            plain_result = (
-                _html_to_text(result)
-                if _looks_like_html(result)
-                else result
+        # --- Блок выбора формата и скачивания ---
+        with col_download:
+            # Определяем чистый текст и HTML-версию из АКТУАЛЬНОГО session_state
+            current_result = st.session_state.get("llm_result") or result
+            plain_result = _html_to_text(current_result) if _looks_like_html(current_result) else current_result
+            result_html = current_result if _looks_like_html(current_result) else _plain_text_to_html(current_result)
+
+            export_format = st.selectbox(
+                "Формат:",
+                ["TXT", "PDF", "Word"],
+                label_visibility="collapsed",
+                key=f"fmt_select_{st.session_state.get('quill_version', 0)}"
             )
 
-            st.download_button(
-                label="📥 Скачать TXT",
-                data=plain_result,
-                file_name=f"summary_{filename}.txt",
-                mime="text/plain; charset=utf-8",
-                key="download_result_txt_view",
-                use_container_width=True,
-            )
+            safe_name = f"summary_{task_type.replace(' ', '_')}"
 
-        with col_html:
-            result_html = (
-                result
-                if _looks_like_html(result)
-                else _plain_text_to_html(result)
-            )
+            if export_format == "TXT":
+                st.download_button(
+                    label="Скачать TXT",
+                    data=plain_result.encode('utf-8'),
+                    file_name=f"{safe_name}.txt",
+                    mime="text/plain",
+                    key="dl_txt_dynamic",
+                    use_container_width=True,
+                )
 
-            html_document = _build_html_document(
-                result_html,
-                task_type,
-            )
+            elif export_format == "PDF":
+                pdf = FPDF()
+                pdf.add_page()
+                font_path = "C:/Windows/Fonts/arial.ttf"
+                try:
+                    pdf.add_font('Arial', '', font_path, uni=True)
+                    pdf.set_font('Arial', size=12)
+                    for line in plain_result.split('\n'):
+                        if len(line) > 100:
+                            chunks = [line[i:i + 100] for i in range(0, len(line), 100)]
+                            for chunk in chunks:
+                                pdf.cell(0, 10, txt=chunk, ln=True)
+                        else:
+                            pdf.cell(0, 10, txt=line, ln=True)
+                    buffer = BytesIO()
+                    pdf.output(buffer)
+                    st.download_button(
+                        label="Скачать PDF",
+                        data=buffer.getvalue(),
+                        file_name=f"{safe_name}.pdf",
+                        mime="application/pdf",
+                        key="dl_pdf_dynamic",
+                        use_container_width=True,
+                    )
+                except Exception as e:
+                    st.error(f"Ошибка PDF: {e}")
 
-            st.download_button(
-                label="📥 Скачать HTML",
-                data=html_document,
-                file_name=f"summary_{filename}.html",
-                mime="text/html; charset=utf-8",
-                key="download_result_html_view",
-                use_container_width=True,
-            )
+            elif export_format == "Word":
+                doc = Document()
+                doc.add_heading(f'Конспект: {task_type}', level=1)
+                doc.add_paragraph(plain_result)
+                buffer = BytesIO()
+                doc.save(buffer)
+                st.download_button(
+                    label="⬇ Скачать Word",
+                    data=buffer.getvalue(),
+                    file_name=f"{safe_name}.docx",
+                    mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    key="dl_docx_dynamic",
+                    use_container_width=True,
+                )
 
         _render_save_to_folder(result, task_type)
         return
@@ -492,7 +536,7 @@ def edit_saved_result(task_type: str) -> None:
     if st.session_state.editor_original_text is None:
         st.session_state.editor_original_text = result
 
-    st.markdown("### 📝 Редактор конспекта")
+    st.markdown("###Редактор конспекта")
 
     st.caption(
         "Выделите нужный фрагмент прямо в редакторе, затем выберите "
@@ -558,7 +602,7 @@ def edit_saved_result(task_type: str) -> None:
 
     with col_save:
         if st.button(
-            "💾 Сохранить изменения",
+            "Сохранить изменения",
             key="btn_save_edit",
             type="primary",
             use_container_width=True,
@@ -576,7 +620,7 @@ def edit_saved_result(task_type: str) -> None:
 
     with col_cancel:
         if st.button(
-            "❌ Отменить",
+            "Отменить",
             key="btn_cancel_edit",
             use_container_width=True,
         ):
@@ -608,7 +652,7 @@ def edit_saved_result(task_type: str) -> None:
 
     with col_download_txt:
         st.download_button(
-            label="📥 Скачать текущий текст в TXT",
+            label="Скачать текущий текст в TXT",
             data=current_text,
             file_name=f"summary_{filename}.txt",
             mime="text/plain; charset=utf-8",
@@ -616,17 +660,3 @@ def edit_saved_result(task_type: str) -> None:
             use_container_width=True,
         )
 
-    with col_download_html:
-        html_document = _build_html_document(
-            current_html,
-            task_type,
-        )
-
-        st.download_button(
-            label="📥 Скачать текущий текст в HTML",
-            data=html_document,
-            file_name=f"summary_{filename}.html",
-            mime="text/html; charset=utf-8",
-            key="download_result_html_edit",
-            use_container_width=True,
-        )
