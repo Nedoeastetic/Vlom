@@ -5,6 +5,7 @@ from config.token_manager import token_manager  # 🔹 ИМПОРТ МЕНЕДЖ
 import re
 
 
+
 def _clean_ai_markdown(text: str) -> str:
     """Удаляет Markdown-разметку из ответа ИИ."""
     if not text:
@@ -135,8 +136,7 @@ def handle_ai_analysis(
                 st.session_state.quill_version = (
                     st.session_state.get("quill_version", 0) + 1
                 )
-                
-                _render_result_download(result_text, task_type)
+
                 _render_analysis_info(extracted_text, result_text)
                 
                 return result_text
@@ -199,16 +199,6 @@ def _handle_ai_error(error: Exception, model_name: str) -> None:
         st.error(f"❌ Неизвестная ошибка: {type(error).__name__}")
         with st.expander("🔧 Детали ошибки (для разработчика)"):
             st.code(error_msg)
-
-def _render_result_download(result_text: str, task_type: str):
-    """Отрисовывает кнопку скачивания результата"""
-    st.download_button(
-        label="Скачать результат",
-        data=result_text,
-        file_name=f"summary_{task_type.replace(' ', '_')}.md",
-        mime="text/markdown",
-        key="download_result_new"
-    )
 
 
 def _render_analysis_info(original_text: str, result_text: str):
