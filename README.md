@@ -6,8 +6,13 @@
 
 Загружайте документы, аудио, видео или ссылки на видеоплатформы, получайте структурированный конспект с помощью ИИ, редактируйте его и сохраняйте в пользовательские папки.
 
-</div>
+<br>
 
+<a href="https://vlom-production.up.railway.app/">
+  <img src="https://img.shields.io/badge/Открыть%20Vlom-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Открыть Vlom">
+</a>
+
+</div>
 ---
 
 ## О проекте
